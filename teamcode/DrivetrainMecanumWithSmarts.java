@@ -361,11 +361,53 @@ public class DrivetrainMecanumWithSmarts extends BlocksOpModeCompanion {
     
     }  // end method waitingForCommand()
 
-    @ExportToBlocks (
+   @ExportToBlocks (
         heading = "Drivetrain",
         color = 255,
-        comment = "Initialize Drivetrain and Pose",
-        tooltip = "Initialize Drivetrain and Pose",
+        comment = "Initialize Drivetrain",
+        tooltip = "Initialize Drivetrain",
+        parameterLabels = {"Left Front Drive Motor Name",
+                           "Left Back Drive Motor Name",
+                           "Right Front Drive Motor Name",
+                           "Right Back Drive Motor Name"
+        }
+    )
+    /** Initialize drivetrain
+     */
+    static public void initDriveTrain(String driveLeftFrontName, String driveLeftBackName, String driveRightFrontName, String driveRightBackName) {
+
+       // Save the hardware configuration names of our drive motors
+       _driveLeftFrontName = driveLeftFrontName;
+       _driveLeftBackName = driveLeftBackName;
+       _driveRightFrontName = driveRightFrontName;
+       _driveRightBackName = driveRightBackName;
+       
+       // Initialize to Config A where our Floor pose is at the Front
+       // Set our drive to the default A configuration
+       setDriveToAConfig();       
+       
+       // Initialize our drive train motors
+       initDrivetrainMotors();
+       
+       // Initialize our IMU for pose information
+       initIMU();
+       telemetry.addData("Hub orientation", "Logo=%s   USB=%s\n ", logoDirection, usbDirection);
+       
+       // Set the encoders for closed loop speed control, and reset the heading.
+       driveLeftFrontHW.setMode(DcMotor.RunMode.RUN_WITHOUT_ENCODER);
+       driveLeftBackHW.setMode(DcMotor.RunMode.RUN_WITHOUT_ENCODER);
+       driveRightFrontHW.setMode(DcMotor.RunMode.RUN_WITHOUT_ENCODER);
+       driveRightBackHW.setMode(DcMotor.RunMode.RUN_WITHOUT_ENCODER);
+       
+       resetHeading();
+
+    }  // end method initDriveTrain()
+
+    @ExportToBlocks (
+        heading = "Drivetrain plus other sensors",
+        color = 255,
+        comment = "Initialize Drivetrain with sensors",
+        tooltip = "Initialize Drivetrain with sensors",
         parameterLabels = {"Left Front Drive Motor Name",
                            "Left Back Drive Motor Name",
                            "Right Front Drive Motor Name",
@@ -373,7 +415,7 @@ public class DrivetrainMecanumWithSmarts extends BlocksOpModeCompanion {
                            "2M Distance Sensor"
         }
     )
-    /** Initialize drivetrain and pose
+    /** Initialize drivetrain
      */
     static public void initDriveTrainWithSmarts(String driveLeftFrontName, String driveLeftBackName, String driveRightFrontName, String driveRightBackName, String sensor2MDistanceName) {
 
@@ -670,6 +712,11 @@ public class DrivetrainMecanumWithSmarts extends BlocksOpModeCompanion {
     public static void moveToObject(boolean movingForward, int distanceSeen) {
         
         distanceObjectSeen = distanceSeen;
+		
+		if (sensor2MDistance == null) {
+			telemetry.addData("DRIVETRAIN", "No distance sensor initialized. Can't use moveToObject.");
+			return;
+		}
         
         // Set the required driving speed 
         if (movingForward)
@@ -710,6 +757,11 @@ public class DrivetrainMecanumWithSmarts extends BlocksOpModeCompanion {
     public static void moveTowardsObject(boolean movingLeft, int distanceToStop) {
         
         distanceFromObject = distanceToStop;
+		
+		if (sensor2MDistance == null) {
+			telemetry.addData("DRIVETRAIN", "No distance sensor initialized. Can't use moveTowardsObject.");
+			return;
+		}
         
         // Set the required driving speed 
         if (movingLeft)
@@ -750,7 +802,12 @@ public class DrivetrainMecanumWithSmarts extends BlocksOpModeCompanion {
     public static void moveAwayFromObject(boolean movingLeft, int distanceToClear) {
         
         distanceToClearObject = distanceToClear;
-        
+			
+		if (sensor2MDistance == null) {
+			telemetry.addData("DRIVETRAIN", "No distance sensor initialized. Can't use moveAwayFromObject.");
+			return;
+		}
+        		     
         // Set the required driving speed  (must be positive for RUN_TO_POSITION)
         if (movingLeft)
             driveSpeed = powerLevel[0];
