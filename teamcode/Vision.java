@@ -40,7 +40,6 @@ import com.qualcomm.robotcore.hardware.SwitchableLight;
 import org.firstinspires.ftc.robotcore.external.BlocksOpModeCompanion;
 import org.firstinspires.ftc.robotcore.external.ClassFactory;
 import org.firstinspires.ftc.robotcore.external.ExportToBlocks;
-import org.firstinspires.ftc.robotcore.external.JavaUtil;
 import org.firstinspires.ftc.robotcore.external.hardware.camera.CameraName;
 import org.firstinspires.ftc.robotcore.external.hardware.camera.WebcamName;
 import org.firstinspires.ftc.robotcore.external.hardware.camera.controls.ExposureControl;
@@ -99,26 +98,107 @@ public class Vision extends BlocksOpModeCompanion
     static private int allianceID = 0;  // Used to store the Alliance we are on. 0=if not set, 1=Red, 2=Blue 
     static private int REDALLIANCE =1;
     static private int BLUEALLIANCE = 2;
-                                        // Will determine in CENTERSTAGE season with a REV Color sensor on the bot reading a blue or red LEGO brick.
+
+    // Will determine in CENTERSTAGE season with a REV Color sensor on the bot reading a blue or red LEGO brick.
     static private NormalizedColorSensor sensorColorAllianceHW = null;
     static private String sensorColorAllianceNAME;
     static private boolean capableOfGettingAlliance = false;  // Used to determine if Alliance detection color sensor is able to be used.
-    
+
 
     @ExportToBlocks (
-        heading = "Vision: Initialize",
+            heading = "Vision: Initialize with one camera",
+            color = 255,
+            comment = "Initialize vision libraries",
+            tooltip = "Wait to start until you see the START displayed. ",
+            parameterLabels = {"Front Camera Name",
+                               "Tensorflow model filename",
+                               "List of labels to detect"
+            }
+    )
+    /**
+     * Initialize the AprilTag and Tensorflow processors within the Vision Portal.
+     **/
+    public static boolean initVision1Camera(String _frontcameraname, String _filename_model, List <String> _labels) {
+
+        frontcamera_name = new String (_frontcameraname);
+
+        // Create the AprilTag processor by using a builder.
+        aprilTag = new AprilTagProcessor.Builder().build();
+        if (aprilTag == null) {
+            ableToRunVision = false;
+            return false;
+        }
+
+        // Adjust Image Decimation to trade-off detection-range for detection-rate.
+        // eg: Some typical detection data using a Logitech C920 WebCam
+        // Decimation = 1 ..  Detect 2" Tag from 10 feet away at 10 Frames per second
+        // Decimation = 2 ..  Detect 2" Tag from 6  feet away at 22 Frames per second
+        // Decimation = 3 ..  Detect 2" Tag from 4  feet away at 30 Frames Per Second
+        // Decimation = 3 ..  Detect 5" Tag from 10 feet away at 30 Frames Per Second
+        // Note: Decimation can be changed on-the-fly to adapt during a match.
+        aprilTag.setDecimation(2);
+
+        // Create the Tensorflow processor by using a builder.
+        tfodBuilder = new TfodProcessor.Builder();
+
+        if (tfodBuilder == null) {
+            ableToRunVision = false;
+            return false;
+        }
+
+        // Set the name of the file where the model can be found.
+        tfodBuilder.setModelFileName(_filename_model);
+        // Set the full ordered list of labels the model is trained to recognize.
+        tfodBuilder.setModelLabels(_labels);
+        // Set the aspect ratio for the images used when the model was created.
+        tfodBuilder.setModelAspectRatio(16 / 9);
+        // Create a TfodProcessor by calling build.
+        tfod = tfodBuilder.build();
+
+        // Next, create a VisionPortal.Builder and set attributes related to the camera.
+
+        frontcamera_HW = hardwareMap.get(WebcamName.class, frontcamera_name);
+        currentCamera = frontcamera_name;
+
+        // Create the vision portal by using a builder.
+        if (frontcamera_HW != null) {
+            visionPortal = new VisionPortal.Builder().setCamera( frontcamera_HW ).addProcessors(tfod, aprilTag).build();
+            ableToRunVision = true;
+
+            // Wait for driver to press start
+            telemetry.addData("Camera preview on/off", "3 dots, Camera Stream");
+            telemetry.addData(">", "Touch Play to start OpMode");
+
+        } else {
+
+            // Wait for driver to press start
+            telemetry.addData("VISION", "Unable to initialize cameras for vision.");
+            ableToRunVision = false;
+            return false;
+
+        }
+
+        return ableToRunVision;
+
+    }
+
+
+    @ExportToBlocks (
+        heading = "Vision: Initialize with two cameras",
         color = 255,
         comment = "Initialize vision libraries",
         tooltip = "Wait to start until you see the START displayed. " +
                   "If using a sensor for getting Alliance, call other initVision with three Strings.",
         parameterLabels = {"Front Camera Name",
-                           "Back Camera Name"
+                "Back Camera Name",
+                "Tensorflow model filename",
+                "List of labels to detect"
         }
     )
     /**
      * Initialize the AprilTag and Tensorflow processors within the Vision Portal.
      **/
-    public static boolean initVision(String _frontcameraname, String _backcameraname) {
+    public static boolean initVision2Cameras(String _frontcameraname, String _backcameraname, String _filename_model, List <String> _labels) {
         
         frontcamera_name = new String (_frontcameraname);
         backcamera_name = new String (_backcameraname);
@@ -149,9 +229,9 @@ public class Vision extends BlocksOpModeCompanion
         }
         
         // Set the name of the file where the model can be found.
-        tfodBuilder.setModelFileName("bp_253_ssd_v2_fpnlite_320x320_metadata.tflite");
+        tfodBuilder.setModelFileName(_filename_model);
         // Set the full ordered list of labels the model is trained to recognize.
-        tfodBuilder.setModelLabels(JavaUtil.createListWith(idTeamProp));
+        tfodBuilder.setModelLabels(_labels);
         // Set the aspect ratio for the images used when the model was created.
         tfodBuilder.setModelAspectRatio(16 / 9);
         // Create a TfodProcessor by calling build.
@@ -189,7 +269,7 @@ public class Vision extends BlocksOpModeCompanion
 
 
     @ExportToBlocks (
-        heading = "Vision: Initialize with Alliance Detection",
+        heading = "Vision: Initialize with Alliance Sensor",
         color = 255,
         comment = "Initialize alliance detection sensor and vision libraries",
         tooltip = "Wait to start until you see the START displayed.",
@@ -201,7 +281,7 @@ public class Vision extends BlocksOpModeCompanion
     /**
      * Initialize the AprilTag and Tensorflow processors within the Vision Portal.
      **/
-    public static boolean initVision(String _frontcameraname, String _backcameraname, String _alliancesensorname) {
+    public static boolean initVisionWithAllianceSensor(String _frontcameraname, String _backcameraname, String _filename_model, List <String> _labels, String _alliancesensorname) {
         float defaultGain = 2;
         
         if (_alliancesensorname.length() > 0) {
@@ -225,7 +305,7 @@ public class Vision extends BlocksOpModeCompanion
             capableOfGettingAlliance = false;
         }
         
-        ableToRunVision = initVision(_frontcameraname, _backcameraname);
+        ableToRunVision = initVision2Cameras(_frontcameraname, _backcameraname, _filename_model, _labels);
 
         return (ableToRunVision && capableOfGettingAlliance);
          
@@ -707,8 +787,13 @@ public class Vision extends BlocksOpModeCompanion
             telemetry.addData("VISION","Vision Portal is not initialized.");
             return;
         }
-        
-        telemetry.addData("VISION",requestedCamera);   
+
+        if (switchableCamera == null) {
+            telemetry.addData("VISION","Two cameras were not initialized.");
+            return;
+        }
+
+        telemetry.addData("VISION",requestedCamera);
         
         if (visionPortal.getCameraState() == CameraState.STREAMING) {
         
