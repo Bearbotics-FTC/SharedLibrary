@@ -111,9 +111,7 @@ public class Vision extends BlocksOpModeCompanion
             color = 255,
             comment = "Initialize vision libraries",
             tooltip = "Wait to start until you see the START displayed. ",
-            parameterLabels = {"Front Camera Name",
-                               "Tensorflow model filename",
-                               "List of labels to detect"
+            parameterLabels = {"Front Camera Name"
             }
     )
     /**
@@ -151,6 +149,84 @@ public class Vision extends BlocksOpModeCompanion
         tfodBuilder.setModelFileName("bp_253_ssd_v2_fpnlite_320x320_metadata.tflite");
         // Set the full ordered list of labels the model is trained to recognize.
         tfodBuilder.setModelLabels(JavaUtil.createListWith("Bolt"));
+        // Set the aspect ratio for the images used when the model was created.
+        tfodBuilder.setModelAspectRatio(16 / 9);
+        // Create a TfodProcessor by calling build.
+        tfod = tfodBuilder.build();
+
+        // Next, create a VisionPortal.Builder and set attributes related to the camera.
+
+        frontcamera_HW = hardwareMap.get(WebcamName.class, frontcamera_name);
+        currentCamera = frontcamera_name;
+
+        // Create the vision portal by using a builder.
+        if (frontcamera_HW != null) {
+            visionPortal = new VisionPortal.Builder().setCamera( frontcamera_HW ).addProcessors(tfod, aprilTag).build();
+            ableToRunVision = true;
+
+            // Wait for driver to press start
+            telemetry.addData("Camera preview on/off", "3 dots, Camera Stream");
+            telemetry.addData(">", "Touch Play to start OpMode");
+
+        } else {
+
+            // Wait for driver to press start
+            telemetry.addData("VISION", "Unable to initialize cameras for vision.");
+            ableToRunVision = false;
+            return false;
+
+        }
+
+        return ableToRunVision;
+
+    }
+
+
+    @ExportToBlocks (
+            heading = "Vision: Initialize with one camera & passing filename + labels",
+            color = 255,
+            comment = "Initialize vision libraries",
+            tooltip = "Wait to start until you see the START displayed. ",
+            parameterLabels = {"Front Camera Name",
+                    "Tensorflow model filename",
+                    "List of labels to detect"
+            }
+    )
+    /**
+     * Initialize the AprilTag and Tensorflow processors within the Vision Portal.
+     **/
+    public static boolean initVision1Camera(String _frontcameraname, String _tfodModelName, String _labels) {
+
+        frontcamera_name = new String (_frontcameraname);
+
+        // Create the AprilTag processor by using a builder.
+        aprilTag = new AprilTagProcessor.Builder().build();
+        if (aprilTag == null) {
+            ableToRunVision = false;
+            return false;
+        }
+
+        // Adjust Image Decimation to trade-off detection-range for detection-rate.
+        // eg: Some typical detection data using a Logitech C920 WebCam
+        // Decimation = 1 ..  Detect 2" Tag from 10 feet away at 10 Frames per second
+        // Decimation = 2 ..  Detect 2" Tag from 6  feet away at 22 Frames per second
+        // Decimation = 3 ..  Detect 2" Tag from 4  feet away at 30 Frames Per Second
+        // Decimation = 3 ..  Detect 5" Tag from 10 feet away at 30 Frames Per Second
+        // Note: Decimation can be changed on-the-fly to adapt during a match.
+        aprilTag.setDecimation(2);
+
+        // Create the Tensorflow processor by using a builder.
+        tfodBuilder = new TfodProcessor.Builder();
+
+        if (tfodBuilder == null) {
+            ableToRunVision = false;
+            return false;
+        }
+
+        // Set the name of the file where the model can be found.
+        tfodBuilder.setModelFileName(_tfodModelName);
+        // Set the full ordered list of labels the model is trained to recognize.
+        tfodBuilder.setModelLabels(JavaUtil.createListWith(_labels));
         // Set the aspect ratio for the images used when the model was created.
         tfodBuilder.setModelAspectRatio(16 / 9);
         // Create a TfodProcessor by calling build.
@@ -998,5 +1074,17 @@ public class Vision extends BlocksOpModeCompanion
 
     }   // end method telemetryTfod()
 
-
+    @ExportToBlocks (
+            heading = "Vision: Disable TFOD",
+            color = 255,
+            comment = "Turns off TFOD processing.",
+            tooltip = "Save your CPU!"
+    )
+    /**
+     * Disables the Tensorflow Model object detection to save CPU in the OpMode
+     */
+    public static void disableTFOD() {
+       // Enable or disable the TensorFlow Object Detection processor.
+        visionPortal.setProcessorEnabled(tfod, false);
+    }
 }
