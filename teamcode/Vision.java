@@ -74,6 +74,7 @@ public class Vision extends BlocksOpModeCompanion
 
     // *******************************************************************
     // Tensorflow related variables such as object label to detect in CENTERSTAGE
+    static private String tfodModelFile = "bp_253_ssd_v2_fpnlite_320x320_metadata.tflite";
     static private String idTeamProp = "Bolt";
     static private int locationTeamProp  = 0;    // Values 0 = not found, 1 = left, 2 = center, 3 = right
 
@@ -181,21 +182,18 @@ public class Vision extends BlocksOpModeCompanion
 
     }
 
-
     @ExportToBlocks (
-            heading = "Vision: Initialize with one camera & passing filename + labels",
+            heading = "Vision: Initialize with one camera",
             color = 255,
             comment = "Initialize vision libraries",
             tooltip = "Wait to start until you see the START displayed. ",
-            parameterLabels = {"Front Camera Name",
-                    "Tensorflow model filename",
-                    "List of labels to detect"
+            parameterLabels = {"Front Camera Name"
             }
     )
     /**
      * Initialize the AprilTag and Tensorflow processors within the Vision Portal.
      **/
-    public static boolean initVision1CameraREDModel(String _frontcameraname) {
+    public static boolean initVision1CameraTFODDefault(String _frontcameraname) {
 
         frontcamera_name = new String (_frontcameraname);
 
@@ -223,10 +221,6 @@ public class Vision extends BlocksOpModeCompanion
             return false;
         }
 
-        // Set the name of the file where the model can be found.
-        tfodBuilder.setModelFileName("bp_253_ssd_v2_fpnlite_320x320_metadata.tflite");
-        // Set the full ordered list of labels the model is trained to recognize.
-        tfodBuilder.setModelLabels(JavaUtil.createListWith("Bolt"));
         // Set the aspect ratio for the images used when the model was created.
         tfodBuilder.setModelAspectRatio(16 / 9);
         // Create a TfodProcessor by calling build.
@@ -260,6 +254,7 @@ public class Vision extends BlocksOpModeCompanion
     }
 
 
+
     @ExportToBlocks (
             heading = "Vision: Initialize with one camera & passing filename + labels",
             color = 255,
@@ -273,7 +268,10 @@ public class Vision extends BlocksOpModeCompanion
     /**
      * Initialize the AprilTag and Tensorflow processors within the Vision Portal.
      **/
-    public static boolean initVision1Camera(String _frontcameraname, String _tfodModelFile, String _labels) {
+    public static boolean initVision1Camera(String _frontcameraname, String _tfodModelFile, String _label) {
+
+        tfodModelFile = _tfodModelFile;
+        idTeamProp = _label;
 
         frontcamera_name = new String (_frontcameraname);
 
@@ -302,9 +300,9 @@ public class Vision extends BlocksOpModeCompanion
         }
 
         // Set the name of the file where the model can be found.
-        tfodBuilder.setModelFileName(_tfodModelFile);
+        tfodBuilder.setModelFileName(tfodModelFile);
         // Set the full ordered list of labels the model is trained to recognize.
-        tfodBuilder.setModelLabels(JavaUtil.createListWith(_labels));
+        tfodBuilder.setModelLabels(JavaUtil.createListWith(idTeamProp));
         // Set the aspect ratio for the images used when the model was created.
         tfodBuilder.setModelAspectRatio(16 / 9);
         // Create a TfodProcessor by calling build.
